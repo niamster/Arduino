@@ -151,6 +151,19 @@ writePort(port, value, bitmask):  Write an 8 bit port.
 #define PIN_TO_SERVO(p)         ((p) - 2)
 #define ARDUINO_PINOUT_OPTIMIZE 1
 
+#elif defined(__AVR_ATmega16__)
+#define TOTAL_ANALOG_PINS       0
+#define TOTAL_PINS              32 // 32 digital
+#define VERSION_BLINK_PIN       0
+#define IS_PIN_DIGITAL(p)       ((p) >= 0 && (p) <= 31)
+#define IS_PIN_ANALOG(p)        (0)
+#define IS_PIN_PWM(p)           IS_PIN_DIGITAL(p)
+#define IS_PIN_SERVO(p)         (0)
+#define IS_PIN_I2C(p)           (0)
+#define PIN_TO_DIGITAL(p)       (p)
+#define PIN_TO_ANALOG(p)        (p)
+#define PIN_TO_PWM(p)           PIN_TO_DIGITAL(p)
+
 
 // Arduino Mega
 #elif defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)

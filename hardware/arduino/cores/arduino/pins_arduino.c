@@ -351,6 +351,135 @@ const uint8_t PROGMEM digital_pin_to_timer_PGM[] = {
 	NOT_ON_TIMER	, // PK 6 ** 68 ** A14	
 	NOT_ON_TIMER	, // PK 7 ** 69 ** A15	
 };
+#elif defined(__AVR_ATmega16__)
+const uint16_t PROGMEM port_to_mode_PGM[] = {
+	NOT_A_PORT,
+	(uint16_t) &DDRA,
+	(uint16_t) &DDRB,
+	(uint16_t) &DDRC,
+	(uint16_t) &DDRD,
+};
+
+const uint16_t PROGMEM port_to_output_PGM[] = {
+	NOT_A_PORT,
+	(uint16_t) &PORTA,
+	(uint16_t) &PORTB,
+	(uint16_t) &PORTC,
+	(uint16_t) &PORTD,
+};
+
+const uint16_t PROGMEM port_to_input_PGM[] = {
+	NOT_A_PORT,
+	(uint16_t) &PINA,
+	(uint16_t) &PINB,
+	(uint16_t) &PINC,
+	(uint16_t) &PIND,
+};
+
+const uint8_t PROGMEM digital_pin_to_port_PGM[] = {
+	PA, /* 0 */
+	PA,
+	PA,
+	PA,
+	PA,
+	PA,
+	PA,
+	PA,
+	PB, /* 8 */
+	PB,
+	PB,
+	PB,
+	PB,
+	PB,
+	PB,
+	PB,
+	PC, /* 16 */
+	PC,
+	PC,
+	PC,
+	PC,
+	PC,
+	PC,
+	PC,
+	PD, /* 24 */
+	PD,
+	PD,
+	PD,
+	PD,
+	PD,
+	PD,
+	PD,
+};
+
+const uint8_t PROGMEM digital_pin_to_bit_mask_PGM[] = {
+	_BV(0), /* 0, port A */
+	_BV(1),
+	_BV(2),
+	_BV(3),
+	_BV(4),
+	_BV(5),
+	_BV(6),
+	_BV(7),
+	_BV(0), /* 8, port B */
+	_BV(1),
+	_BV(2),
+	_BV(3),
+	_BV(4),
+	_BV(5),
+	_BV(6),
+	_BV(7),
+	_BV(0), /* 16, port C */
+	_BV(1),
+	_BV(2),
+	_BV(3),
+	_BV(4),
+	_BV(5),
+	_BV(6),
+	_BV(7),
+	_BV(0), /* 24, port D */
+	_BV(1),
+	_BV(2),
+	_BV(3),
+	_BV(4),
+	_BV(5),
+	_BV(6),
+	_BV(7),
+};
+
+const uint8_t PROGMEM digital_pin_to_timer_PGM[] = {
+	NOT_ON_TIMER, /* 0 - port A */
+	NOT_ON_TIMER,
+	NOT_ON_TIMER,
+	NOT_ON_TIMER,
+	NOT_ON_TIMER,
+	NOT_ON_TIMER,
+	NOT_ON_TIMER,
+	NOT_ON_TIMER,
+	NOT_ON_TIMER, /* 8 - port B */
+    NOT_ON_TIMER,
+	NOT_ON_TIMER,
+	TIMER0A,
+    NOT_ON_TIMER,
+	NOT_ON_TIMER,
+	NOT_ON_TIMER,
+	NOT_ON_TIMER,
+	NOT_ON_TIMER, /* 16 - port C */
+	NOT_ON_TIMER,
+	NOT_ON_TIMER,
+	NOT_ON_TIMER,
+	NOT_ON_TIMER,
+    NOT_ON_TIMER,
+    NOT_ON_TIMER,
+    NOT_ON_TIMER,
+	NOT_ON_TIMER, /* 24 - port D */
+	NOT_ON_TIMER,
+	NOT_ON_TIMER,
+	NOT_ON_TIMER,
+	TIMER1B,
+    TIMER1A,
+    NOT_ON_TIMER,
+    TIMER2,
+};
 #else
 // these arrays map port names (e.g. port B) to the
 // appropriate addresses for various functions (e.g. reading
