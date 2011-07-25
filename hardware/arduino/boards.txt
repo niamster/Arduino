@@ -336,3 +336,21 @@ atmega8.build.mcu=atmega8
 atmega8.build.f_cpu=16000000L
 atmega8.build.core=arduino
 
+##############################################################
+
+atmega16.name=Arduino w/ ATmega16
+
+atmega16.upload.protocol=stk500
+atmega16.upload.maximum_size=15360
+atmega16.upload.speed=9600
+
+atmega16.bootloader.low_fuses=0xdf
+atmega16.bootloader.high_fuses=0xda
+atmega16.bootloader.path=atmega16
+atmega16.bootloader.file=ATmega16BOOT.hex
+atmega16.bootloader.unlock_bits=0x3F
+atmega16.bootloader.lock_bits=0x3F
+
+atmega16.build.mcu=atmega16
+atmega16.build.f_cpu=7372800L
+atmega16.build.core=arduino
