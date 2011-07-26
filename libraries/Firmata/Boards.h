@@ -152,11 +152,11 @@ writePort(port, value, bitmask):  Write an 8 bit port.
 #define ARDUINO_PINOUT_OPTIMIZE 1
 
 #elif defined(__AVR_ATmega16__)
-#define TOTAL_ANALOG_PINS       0
-#define TOTAL_PINS              32 // 32 digital
+#define TOTAL_ANALOG_PINS       8
+#define TOTAL_PINS              32 // 32 digital(8 of them analog)
 #define VERSION_BLINK_PIN       0
 #define IS_PIN_DIGITAL(p)       ((p) >= 0 && (p) <= 31)
-#define IS_PIN_ANALOG(p)        (0)
+#define IS_PIN_ANALOG(p)        ((p) >= 0 && (p) <= 7)
 #define IS_PIN_PWM(p)           IS_PIN_DIGITAL(p)
 #define IS_PIN_SERVO(p)         (0)
 #define IS_PIN_I2C(p)           (0)
