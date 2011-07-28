@@ -33,6 +33,7 @@
 /**********************************************************/
 
 #include <inttypes.h>
+#include <string.h>
 #include <avr/io.h>
 #include <avr/pgmspace.h>
 #include <avr/eeprom.h>
@@ -92,12 +93,20 @@ static uint8_t getch(void);
 static void eat(uint8_t);
 
 static void byte_response(uint8_t val);
-static void stream_response(uint8_t *val, uint8_t len);
+static void stream_response(const uint8_t *val, uint8_t len);
 #define nothing_response() stream_response(0, 0)
 
 static void boot_program_page(uint32_t page, uint8_t *buf);
 
+static void blink_led(uint8_t led);
 static void launch_app(void);
+
+#define IT_LEVEL        0
+#define IT_RAISING_EDGE 1
+#define IT_FALLING_EDGE 2
+
+static void enable_interrupt(uint8_t it, uint8_t sence);
+static void disable_interrupt(uint8_t it);
 
 union address {
     uint16_t word;
@@ -115,32 +124,48 @@ union length {
     } h;
 };
 
-uint8_t buff[256];
+static uint8_t buff[256];
+static const uint8_t sig[] = {SIG1, SIG2, SIG3};
+static volatile uint8_t loop_forever = 0;
 
-uint8_t sig[] = {SIG1, SIG2, SIG3};
+ISR(INT0_vect, ISR_BLOCK)
+{
+    disable_interrupt(0);
+
+    loop_forever = 1;
+
+    outb(LED_PORT, inb(LED_PORT) & ~_BV(LED1));
+    sbi(LED_DDR, LED1);
+}
+
+ISR(INT1_vect, ISR_BLOCK)
+{
+    launch_app();
+}
 
 int main(void)
 {
-    uint8_t i, ch;
+    uint8_t ch;
     uint8_t eeprom;
     union length length;
     union address address;
 
-    cli(); // Disable interrupts, just to be sure
-
-    /* initialize UART(s) depending on CPU defined */
+    /* initialize UART */
     UBRRH = (((F_CPU/BAUD_RATE)/16)-1)>>8; 	// set baud rate
     UBRRL = (((F_CPU/BAUD_RATE)/16)-1);
     UCSRB = (1<<RXEN)|(1<<TXEN);  // enable Rx & Tx
     UCSRC = (1<<URSEL)|(1<<UCSZ1)|(1<<UCSZ0);  // config USART; 8N1
 
-    /* blink the LED */
-    outb(LED_PORT, inb(LED_PORT) | _BV(LED0));
-    sbi(LED_DDR, LED0);
-	for (i=0; i<16; ++i) {
-		outb(LED_PORT, inb(LED_PORT) ^ _BV(LED0));
-		_delay_loop_2(0);
-	}
+    // Move interrupt vectors to the beginning of bootloader section
+    GICR = 1<<IVCE;
+    GICR = 1<<IVSEL;
+
+    enable_interrupt(0, IT_RAISING_EDGE);
+    enable_interrupt(1, IT_RAISING_EDGE);
+
+    blink_led(LED0);
+
+    sei();
 
     /* forever */
     for (;;) {
@@ -154,7 +179,6 @@ int main(void)
             nothing_response();
 		}
 
-#if 0
 		/* Request programmer ID */
 		/* Not using PROGMEM string due to boot block in m128 being beyond 64kB boundry  */
 		/* Would need to selectively manipulate RAMPZ, and it's only 9 characters anyway so who cares.  */
@@ -171,15 +195,12 @@ int main(void)
 				putch(0x10);
             }
 		}
-#endif
 
-#if 0
 		/* AVR ISP/STK500 board commands  DON'T CARE so default nothing_response */
 		else if (ch=='@') {
             if (getch() > 0x85) getch();
             nothing_response();
 		}
-#endif
 
 		/* AVR ISP/STK500 board requests */
 		else if (ch=='A') {
@@ -222,12 +243,10 @@ int main(void)
             launch_app();
 		}
 
-#if 0
 		/* Erase device, don't care as we will erase one page at a time anyway.  */
 		else if (ch=='R') {
             nothing_response();
 		}
-#endif
 
 		/* Universal SPI programming command, disabled.  Would be used for fuses and lock bits.  */
 		else if (ch=='V') {
@@ -280,6 +299,9 @@ int main(void)
                     boot_program_page(address.word, b);
 #else
                     asm volatile(
+                                 "lds	r19,%1          \n" // Save status register and disable interrupts.
+                                 "cli                   \n"
+
                                  "clr	r17             \n"	// word count
 
                                  "ldi	r18,0x03        \n"	// Erase page pointed to by Z ((1<<PGERS) | (1<<SPMEN))
@@ -298,7 +320,7 @@ int main(void)
                                  "adiw	r30,2           \n"	// Next word in FLASH
 
                                  "inc	r17             \n"
-                                 "cpi   r17,%1	        \n"
+                                 "cpi   r17,%2	        \n"
                                  "brlo	push            \n"	// Still same page in FLASH
                                  "rjmp	write           \n"
 
@@ -308,7 +330,7 @@ int main(void)
                                  "sbrc	r16,0           \n"
                                  "rjmp	wait_spm        \n"
                                  "wait_ee:              \n" // Wait for EEPROM writes to complete
-                                 "lds   r16,%2          \n"
+                                 "lds   r16,%3          \n"
                                  "sbrc  r16,1           \n"
                                  "rjmp wait_ee          \n"
                                  "sts	%0,r18          \n"
@@ -316,8 +338,8 @@ int main(void)
                                  "ret                   \n"
 
                                  "write:                \n"
-                                 "mov	r30,%3          \n"	// Address of FLASH location (in words)
-                                 "mov	r31,%4          \n"
+                                 "mov	r30,%4          \n"	// Address of FLASH location (in words)
+                                 "mov	r31,%5          \n"
 
                                  "ldi	r18,0x05        \n"	// Write page pointed to by Z ((1<<PGWRT) | (1<<SPMEN))
                                  "rcall do_spm		    \n"
@@ -325,10 +347,11 @@ int main(void)
                                  "ldi	r18,0x11        \n"	// Re-enable RWW section ((1<<RWWSRE) | (1<<SPMEN))
                                  "rcall do_spm		    \n"
 
+                                 "sts	%1,r19          \n" // Re-enable interrupts (if they were ever enabled)
+
                                  "clr	__zero_reg__	\n"	// restore zero register
 
-                                 : "=m" (SPMCR) : "M" (SPM_PAGESIZE>>1), "m"(EECR), "r"(address.h.low), "r"(address.h.high), "z"(address.word), "x"(b) : "r0","r1","r16","r17","r18");
-
+                                 : "=m"(SPMCR), "=m"(SREG) : "M"(SPM_PAGESIZE>>1), "m"(EECR), "r"(address.h.low), "r"(address.h.high), "z"(address.word), "x"(b) : "r0","r1","r16","r17","r18","r19");
 #endif
                     b += SPM_PAGESIZE;
                     n -= SPM_PAGESIZE;
@@ -372,12 +395,10 @@ int main(void)
             stream_response(sig, 3);
 		}
 
-#if 0
 		/* Read oscillator calibration byte */
 		else if (ch=='v') {
             byte_response(0x00);
 		}
-#endif
 	} /* end of forever loop */
 }
 
@@ -390,12 +411,20 @@ static void putch(uint8_t ch)
 
 static uint8_t getch(void)
 {
-	uint32_t count = MAX_TIME_COUNT;
+    uint32_t count;
 
-    while (!(inb(UCSRA) & _BV(RXC)) && --count);
+    for (;;) {
+        count = MAX_TIME_COUNT;
 
-    if (!count)
-        launch_app();
+        while (!(inb(UCSRA) & _BV(RXC)) && --count);
+
+        if (!count) {
+            if (!loop_forever)
+                launch_app();
+        } else {
+            break;
+        }
+    }
 
     return inb(UDR);
 }
@@ -411,7 +440,7 @@ static void byte_response(uint8_t val)
     stream_response(&val, 1);
 }
 
-static void stream_response(uint8_t *val, uint8_t len)
+static void stream_response(const uint8_t *val, uint8_t len)
 {
     if (getch() == ' ') {
         putch(0x14);
@@ -426,52 +455,90 @@ static void boot_program_page(uint32_t page, uint8_t *buf)
     uint16_t i, w;
     uint8_t sreg;
 
-#if 0
-    // Save status register and disable interrupts.
+    // Save status register and disable interrupts
     sreg = SREG;
     cli();
-#endif
 
     eeprom_busy_wait();
 
     boot_page_erase(page);
-    boot_spm_busy_wait();      // Wait until the memory is erased.
+    boot_spm_busy_wait();      // Wait until the memory is erased
 
     for (i=0; i<SPM_PAGESIZE; i+=2) {
-        // Set up little-endian word.
+        // Set up little-endian word
         w = *buf++;
         w |= (*buf++) << 8;
 
         boot_page_fill(page + i, w);
     }
 
-    boot_page_write(page);     // Store buffer in flash page.
-    boot_spm_busy_wait();      // Wait until the memory is written.
+    boot_page_write(page);     // Store buffer in flash page
+    boot_spm_busy_wait();      // Wait until the memory is written
 
     // Reenable RWW-section again. We need this if we want to jump back
-    // to the application after bootloading.
+    // to the application after bootloading
     boot_rww_enable();
 
-#if 0
-    // Re-enable interrupts (if they were ever enabled).
+    // Re-enable interrupts (if they were ever enabled)
     SREG = sreg;
-#endif
+}
+
+static void blink_led(uint8_t led)
+{
+    uint8_t i;
+
+    /* blink the LED */
+    outb(LED_PORT, inb(LED_PORT) | _BV(led));
+    sbi(LED_DDR, led);
+	for (i=0; i<16; ++i) {
+		outb(LED_PORT, inb(LED_PORT) ^ _BV(led));
+		_delay_loop_2(0);
+	}
 }
 
 static void launch_app(void)
 {
-    uint8_t i;
     void (*app)(void) = 0x0000;
 
-    /* blink the LED */
-    outb(LED_PORT, inb(LED_PORT) | _BV(LED7));
-    sbi(LED_DDR, LED7);
-	for (i=0; i<16; ++i) {
-		outb(LED_PORT, inb(LED_PORT) ^ _BV(LED7));
-		_delay_loop_2(0);
-	}
+    cli();
+
+    // Move interrupt vectors to the beginning of FLASH and disable them
+    GICR = 1<<IVCE;
+    GICR = 0;
+
+    blink_led(LED7);
+
+    /* disable all LEDs */
+    outb(LED_PORT, 0xFF);
 
     app();
+}
+
+/* Note: interrupt #2 for ATmega16 is not supported by this routine */
+static void enable_interrupt(uint8_t it, uint8_t sence)
+{
+    uint8_t shift = it << 1;
+
+    MCUCR &= ~(3<<shift);
+    switch (sence) {
+        case IT_LEVEL:
+            /* nothing to do */
+            break;
+        case IT_RAISING_EDGE:
+            MCUCR |= 3<<shift;
+            break;
+        case IT_FALLING_EDGE:
+            MCUCR |= 2<<shift;
+            break;
+    }
+
+    GICR |= 1 << (it+6);
+}
+
+/* Note: interrupt #2 for ATmega16 is not supported by this routine */
+static void disable_interrupt(uint8_t it)
+{
+    GICR &= ~(1 << (it+6));
 }
 
 /* end of file ATmega16BOOT.c */

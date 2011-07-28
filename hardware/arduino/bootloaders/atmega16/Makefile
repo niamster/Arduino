@@ -13,10 +13,10 @@ DIRLIB = $(DIRAVR)/avr/lib
 
 
 MCU_TARGET = atmega16
-LDSECTION  = --section-start=.text=0x3c00
+LDSECTION  = --section-start=.text=0x3800
 
 OBJ        = $(PROGRAM).o
-OPTIMIZE   = -Os
+OPTIMIZE   = -O2
 
 DEFS       = -DF_CPU=7372800UL -DBAUD_RATE=9600
 LIBS       =
