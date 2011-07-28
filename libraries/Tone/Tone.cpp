@@ -27,7 +27,7 @@
 #include <pins_arduino.h>
 #include "Tone.h"
 
-#if defined(__AVR_ATmega8__)
+#if defined(__AVR_ATmega8__) || defined(__AVR_ATmega16__)
 #define TCCR2A TCCR2
 #define TCCR2B TCCR2
 #define COM2A1 COM21
@@ -37,6 +37,14 @@
 #define OCIE2A OCIE2
 #define TIMER2_COMPA_vect TIMER2_COMP_vect
 #define TIMSK1 TIMSK
+#endif
+
+#if defined(__AVR_ATmega16__)
+#define TCCR0A TCCR0
+#define TCCR0B TCCR0
+#define OCR0A OCR0
+#define TIMSK0 TIMSK
+#define OCIE0A OCIE0
 #endif
 
 // timerx_toggle_count:
@@ -82,6 +90,13 @@ const uint8_t PROGMEM tone_pin_to_timer_PGM[] = { 2, 3, 4, 5, 1, 0 };
 #define AVAILABLE_TONE_PINS 2
 
 const uint8_t PROGMEM tone_pin_to_timer_PGM[] = { 2, 1 };
+
+#elif defined(__AVR_ATmega16__)
+
+#define AVAILABLE_TONE_PINS 3
+
+const uint8_t PROGMEM tone_pin_to_timer_PGM[] = { 2, 1, 0 };
+static uint8_t tone_pins[AVAILABLE_TONE_PINS] = { 31, 28, 11 };
 
 #else
 
