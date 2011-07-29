@@ -79,7 +79,7 @@ void TimerOne::attachInterrupt(void (*isr)(), long microseconds)
 {
   if(microseconds > 0) setPeriod(microseconds);
   isrCallback = isr;                                       // register the user's callback with the real ISR
-  TIMSK1 = _BV(TOIE1);                                     // sets the timer overflow interrupt enable bit
+  TIMSK1 |= _BV(TOIE1);                                     // sets the timer overflow interrupt enable bit
   sei();                                                   // ensures that interrupts are globally enabled
   start();
 }
