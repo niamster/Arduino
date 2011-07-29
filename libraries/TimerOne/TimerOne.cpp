@@ -17,6 +17,10 @@
 
 #include "TimerOne.h"
 
+#if defined(__AVR_ATmega8__) || defined(__AVR_ATmega128__) || defined(__AVR_ATmega16__)
+#define TIMSK1 TIMSK
+#endif
+
 TimerOne Timer1;              // preinstatiate
 
 ISR(TIMER1_OVF_vect)          // interrupt service routine that wraps a user defined function supplied by attachInterrupt
